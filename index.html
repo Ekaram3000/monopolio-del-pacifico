@@ -1,91 +1,111 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="https://telegram.org"></script>
     <style>
-        body { background: #001a33; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 0; }
-        .cabecera { background: #004080; padding: 15px; border-bottom: 2px solid #00ffcc; }
-        .tablero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 10px; background: #333; margin: 10px auto; width: 90%; max-width: 380px; }
-        .isla { background: #e0f7fa; color: #333; height: 60px; font-size: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; border-radius: 3px; border-bottom: 4px solid #ccc; }
-        .marrón { border-bottom-color: #8B4513; } .celeste { border-bottom-color: #87CEEB; } .rosa { border-bottom-color: #FF69B4; } .especial { background: #ffeb3b; }
-        .ficha { width: 14px; height: 14px; background: #ff3300; border-radius: 50%; border: 2px solid white; position: absolute; z-index: 10; }
-        .boton { background: #00ffcc; border: none; padding: 15px; color: black; border-radius: 30px; font-weight: bold; font-size: 18px; margin: 15px; cursor: pointer; width: 85%; box-shadow: 0 4px 0 #00997a; }
+        :root { --neon: #00f2ff; --bg: #050a1a; --card: #101a30; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', Roboto, sans-serif; text-align: center; margin: 0; padding: 0; overflow-x: hidden; }
+        
+        /* Encabezado Premium */
+        .header { background: linear-gradient(180deg, #102040 0%, var(--bg) 100%); padding: 25px 15px; border-bottom: 2px solid var(--neon); box-shadow: 0 5px 20px rgba(0,242,255,0.2); }
+        .role-badge { background: rgba(0, 242, 255, 0.1); border: 1px solid var(--neon); padding: 5px 15px; border-radius: 20px; font-size: 12px; color: var(--neon); text-transform: uppercase; letter-spacing: 1px; }
+        .money-display { font-size: 32px; font-weight: 800; margin-top: 10px; text-shadow: 0 0 10px var(--neon); }
+
+        /* Tablero Estilo App */
+        .tablero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 15px; margin: 15px auto; max-width: 380px; }
+        .isla { background: var(--card); height: 75px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; border: 1px solid rgba(255,255,255,0.1); position: relative; transition: all 0.3s; }
+        .isla.active { border-color: var(--neon); box-shadow: 0 0 15px rgba(0,242,255,0.4); background: #1a2a4a; }
+        
+        /* Indicadores de Color (Grupos) */
+        .marrón { border-top: 4px solid #8B4513; } .celeste { border-top: 4px solid #00d4ff; } 
+        .rosa { border-top: 4px solid #ff00ff; } .especial { border: 1px dashed var(--neon); opacity: 0.8; }
+
+        /* Ficha del Jugador */
+        .ficha { width: 14px; height: 14px; background: #fff; border-radius: 50%; box-shadow: 0 0 15px #fff; position: absolute; top: 5px; right: 5px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* Botón de Acción */
+        .btn-lanzar { background: var(--neon); color: #000; border: none; padding: 18px 40px; border-radius: 40px; font-size: 18px; font-weight: 900; cursor: pointer; margin-top: 10px; box-shadow: 0 0 20px rgba(0,242,255,0.5); width: 85%; transition: 0.2s; }
+        .btn-lanzar:active { transform: scale(0.95); box-shadow: none; }
+
+        #log { margin-top: 20px; font-size: 14px; color: #8a9ab0; font-style: italic; padding: 0 20px; min-height: 40px; }
     </style>
 </head>
 <body>
-    <div class="cabecera">
-        <h2 id="mostrarRol">Cargando...</h2>
-        <div style="display:flex; justify-content: space-around;">
-            <span>💰 $<span id="mostrarDinero">0</span></span>
-            <span>📍 <span id="mostrarPos">Salida</span></span>
-        </div>
+    <div class="header">
+        <span class="role-badge" id="rolName">Cargando Rol...</span>
+        <div class="money-display">$<span id="txtDinero">0</span></div>
     </div>
 
-    <div class="tablero" id="miTablero"></div>
+    <div id="log">¡Bienvenido al Pacífico! Toca para navegar.</div>
 
-    <div id="txtInfo" style="padding:10px; color:#00ffcc; font-size:13px; min-height:40px;">¡Tira los dados!</div>
-    <button class="boton" onclick="lanzar()">🎲 TIRAR DADOS</button>
+    <div class="tablero" id="gridTablero"></div>
+
+    <button class="btn-lanzar" onclick="lanzar()">🎲 LANZAR DADOS</button>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+        tg.backgroundColor = "#050a1a";
 
-        const islasPacífico = [
+        const islas = [
             {n: "SALIDA", p: 0, g: "especial"}, {n: "Norfolk", p: 60, g: "marrón"}, 
-            {n: "Navidad", p: 60, g: "marrón"}, {n: "LAVA", p: 0, g: "especial"},
+            {n: "Navidad", p: 60, g: "marrón"}, {n: "LAVA ⬛", p: 0, g: "especial"},
             {n: "Marshall", p: 100, g: "celeste"}, {n: "Marianas", p: 100, g: "celeste"}, 
             {n: "CÁRCEL", p: 0, g: "especial"}, {n: "Guam", p: 120, g: "celeste"},
-            {n: "Tonga", p: 140, g: "rosa"}, {n: "AZUL", p: 0, g: "especial"}, 
+            {n: "Tonga", p: 140, g: "rosa"}, {n: "AZUL 🟦", p: 0, g: "especial"}, 
             {n: "Samoa", p: 140, g: "rosa"}, {n: "Cook", p: 160, g: "rosa"}
         ];
 
-        const listaRoles = ["The Rich Man", "The President", "Normal Player", "The Special", "El Afortunado"];
-        let miRol = listaRoles[Math.floor(Math.random() * listaRoles.length)];
+        const roles = ["The Rich Man", "The President", "Normal Player", "The Special", "El Afortunado"];
+        let rolIdx = Math.floor(Math.random() * roles.length);
+        let miRol = roles[rolIdx];
         let miDinero = (miRol === "The Rich Man") ? 3000 : 1500;
         let miPos = 0;
 
-        document.getElementById('mostrarRol').innerText = "Rol: " + miRol;
-        document.getElementById('mostrarDinero').innerText = miDinero;
+        document.getElementById('rolName').innerText = miRol;
+        document.getElementById('txtDinero').innerText = miDinero;
 
-        const contenedor = document.getElementById('miTablero');
-        islasPacífico.forEach((isla, i) => {
+        const grid = document.getElementById('gridTablero');
+        islas.forEach((isla, i) => {
             const div = document.createElement('div');
-            div.className = "isla " + isla.g;
-            div.id = "cas-" + i;
-            div.innerText = isla.n;
-            contenedor.appendChild(div);
+            div.className = `isla ${isla.g}`;
+            div.id = `i-${i}`;
+            div.innerHTML = `<span>${isla.n}</span><b style="color:var(--neon);margin-top:5px">${isla.p > 0 ? '$'+isla.p : ''}</b>`;
+            grid.appendChild(div);
         });
 
-        function actualizarFicha() {
-            const vieja = document.querySelector('.ficha');
-            if (vieja) vieja.remove();
+        function mover() {
+            document.querySelectorAll('.isla').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.ficha').forEach(f => f.remove());
+            
+            const actual = document.getElementById(`i-${miPos}`);
+            actual.classList.add('active');
             const ficha = document.createElement('div');
             ficha.className = 'ficha';
-            document.getElementById("cas-" + miPos).appendChild(ficha);
-            document.getElementById('mostrarPos').innerText = islasPacífico[miPos].n;
+            actual.appendChild(ficha);
         }
 
         function lanzar() {
             const dado = Math.floor(Math.random() * 6) + 1;
-            miPos = (miPos + dado) % islasPacífico.length;
-            
-            const islaActual = islasPacífico[miPos];
-            let mensaje = "Sacaste " + dado + ". Caíste en " + islaActual.n;
+            miPos = (miPos + dado) % islas.length;
+            const isla = islas[miPos];
 
-            if (islaActual.p > 0) {
-                miDinero -= 100; // Compra fija para probar
-                mensaje += ". ¡Comprada por $100!";
+            let msj = `Dados: ${dado}. Has llegado a ${isla.n}.`;
+            if(isla.p > 0) {
+                miDinero -= 100;
+                msj += " ¡Comprada por $100!";
             }
 
-            document.getElementById('mostrarDinero').innerText = miDinero;
-            document.getElementById('txtInfo').innerText = mensaje;
-            actualizarFicha();
-            tg.HapticFeedback.impactOccurred('medium');
+            document.getElementById('txtDinero').innerText = miDinero;
+            document.getElementById('log').innerText = msj;
+            mover();
+            tg.HapticFeedback.impactOccurred('heavy');
         }
 
-        actualizarFicha();
+        mover();
     </script>
 </body>
 </html>
