@@ -2,84 +2,75 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://telegram.org"></script>
     <style>
         body { background: #001a33; color: white; font-family: sans-serif; text-align: center; margin: 0; }
-        #header { background: #004080; padding: 10px; border-bottom: 2px solid #00ffcc; }
-        #stats { display: flex; justify-content: space-around; padding: 10px; background: rgba(0,0,0,0.5); font-weight: bold; }
-        .board { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; padding: 10px; background: #333; margin: 10px auto; width: 90vw; max-width: 360px; }
-        .cell { background: #e0f7fa; color: #333; height: 45px; font-size: 7px; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; border: 1px solid #999; }
-        .player { width: 12px; height: 12px; background: #ff3300; border-radius: 50%; position: absolute; border: 2px solid white; z-index: 10; }
-        .btn { background: #00ffcc; border: none; padding: 15px 30px; color: #000; border-radius: 30px; font-weight: bold; font-size: 18px; margin: 20px; cursor: pointer; box-shadow: 0 5px 0 #00997a; }
+        .tablero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 10px; background: #333; margin: 10px; }
+        .isla { background: #e0f7fa; color: #333; height: 60px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; }
+        .ficha { width: 15px; height: 15px; background: red; border-radius: 50%; border: 2px solid white; position: absolute; }
+        .boton { background: #00ffcc; border: none; padding: 20px; color: black; border-radius: 10px; font-weight: bold; width: 80%; font-size: 18px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="header"><h2 id="role">Asignando...</h2></div>
-    <div id="stats">
-        <div>💰 $<span id="money">0</span></div>
-        <div>📍 <span id="pos-label">Salida</span></div>
+    <div style="background: #004080; padding: 15px;">
+        <h2 id="miRol">Cargando...</h2>
+        <h3>💰 $<span id="miDinero">0</span></h3>
     </div>
-    <div class="board" id="game-board"></div>
-    <div id="msg" style="padding:10px; color:#00ffcc;">¡Toca el botón!</div>
-    <button class="btn" onclick="lanzar()">🎲 TIRAR DADOS</button>
+
+    <div class="tablero" id="mapa"></div>
+
+    <p id="info">¡Toca el botón para jugar!</p>
+    <button class="boton" onclick="jugar()">🎲 TIRAR DADOS</button>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const islas = ["SALIDA", "Norfolk", "Navidad", "⬛ LAVA", "Marshall", "Marianas", "CÁRCEL", "Guam", "Tonga", "🟦 AZUL", "Samoa", "Cook", "PARQUE", "Vanuatu", "Salomón", "⬛ LAVA", "Kiribati", "Tuvalu", "VETE CÁR", "Niue", "Tahití", "🟦 AZUL", "Bora Bora", "Fiyi"];
-        const roles = {"The Rich Man": 3000, "The President": 1500, "Normal Player": 1500, "The Special": 1500, "El Afortunado": 1500};
+        const misIslas = ["SALIDA", "Norfolk", "Navidad", "LAVA", "Marshall", "Marianas", "CÁRCEL", "Guam", "Tonga", "AZUL", "Samoa", "Cook"];
+        const misRoles = ["The Rich Man", "The President", "Normal Player", "The Special", "El Afortunado"];
         
-        let miRol = Object.keys(roles)[Math.floor(Math.random() * 5)];
-        let miDinero = roles[miRol];
-        let miPos = 0;
+        let rol = misRoles[Math.floor(Math.random() * misRoles.length)];
+        let dinero = (rol === "The Rich Man") ? 3000 : 1500;
+        let posicion = 0;
 
-        // Mostrar datos iniciales
-        document.getElementById('role').innerText = miRol;
-        document.getElementById('money').innerText = miDinero;
+        document.getElementById('miRol').innerText = "Eres: " + rol;
+        document.getElementById('miDinero').innerText = dinero;
 
-        // Crear tablero
-        const contenedor = document.getElementById('game-board');
-        islas.forEach((nombre, i) => {
-            const casilla = document.createElement('div');
-            casilla.className = 'cell';
-            casilla.id = 'casilla-' + i;
-            casilla.innerText = nombre;
-            contenedor.appendChild(casilla);
+        const contenedor = document.getElementById('mapa');
+        misIslas.forEach((nombre, i) => {
+            const div = document.createElement('div');
+            div.className = 'isla';
+            div.id = 'casilla-' + i;
+            div.innerText = nombre;
+            contenedor.appendChild(div);
         });
 
-        function actualizarFicha() {
-            // Borrar ficha vieja
-            const vieja = document.querySelector('.player');
+        function moverFicha() {
+            const vieja = document.querySelector('.ficha');
             if (vieja) vieja.remove();
-            
-            // Poner ficha nueva
             const ficha = document.createElement('div');
-            ficha.className = 'player';
-            document.getElementById('casilla-' + miPos).appendChild(ficha);
-            document.getElementById('pos-label').innerText = islas[miPos];
+            ficha.className = 'ficha';
+            document.getElementById('casilla-' + posicion).appendChild(ficha);
         }
 
-        function lanzar() {
+        function jugar() {
             const dado = Math.floor(Math.random() * 6) + 1;
-            miPos = (miPos + dado) % 24;
+            posicion = (posicion + dado) % misIslas.length;
             
-            // Si no es una casilla especial, "compra" automáticamente
-            if (miPos % 6 !== 0) {
-                miDinero -= 100;
-                document.getElementById('money').innerText = miDinero;
-                document.getElementById('msg').innerText = "Sacaste " + dado + ". ¡Compraste " + islas[miPos] + "!";
+            if (posicion !== 0 && posicion !== 3 && posicion !== 6 && posicion !== 9) {
+                dinero -= 100;
+                document.getElementById('info').innerText = "Sacaste " + dado + ". ¡Compraste " + misIslas[posicion] + "!";
             } else {
-                document.getElementById('msg').innerText = "Sacaste " + dado + ". Caíste en " + islas[miPos];
+                document.getElementById('info').innerText = "Sacaste " + dado + ". Caíste en " + misIslas[posicion];
             }
 
-            actualizarFicha();
+            document.getElementById('miDinero').innerText = dinero;
+            moverFicha();
             tg.HapticFeedback.impactOccurred('medium');
         }
 
-        // Iniciar posición
-        actualizarFicha();
+        moverFicha();
     </script>
 </body>
 </html>
