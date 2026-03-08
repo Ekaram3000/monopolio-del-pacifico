@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://telegram.org"></script>
+    <title>Monopolio Pacífico</title>
+    <style>
+        body { background: #001a33; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
+        .btn { background: #00aaff; border: none; padding: 15px; color: white; border-radius: 10px; font-weight: bold; width: 100%; cursor: pointer; }
+        #char-card { border: 2px solid #00ffcc; padding: 15px; margin-top: 20px; border-radius: 15px; display: none; }
+    </style>
+</head>
+<body>
+    <h1>🏝️ Monopolio Pacífico</h1>
+    <button class="btn" onclick="assignCharacter()">🎲 ASIGNAR MI PERSONAJE</button>
+
+    <div id="char-card">
+        <h2 id="char-name"></h2>
+        <p id="char-desc"></p>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        const roles = [
+            { n: "The Rich Man", d: "Inicias con doble capital, pero pagas +20% impuestos." },
+            { n: "The President", d: "Si sales de la cárcel, ¡cambias una regla del juego!" },
+            { n: "Normal Player", d: "Tus dados nunca sacan 1. ¡Consistencia total!" },
+            { n: "The Special", d: "Puedes intercambiar tu posición con otro jugador una vez." },
+            { n: "El Afortunado", d: "50% de probabilidad de no pagar renta en resorts." }
+        ];
+
+        function assignCharacter() {
+            const random = roles[Math.floor(Math.random() * roles.length)];
+            document.getElementById('char-name').innerText = "Eres: " + random.n;
+            document.getElementById('char-desc').innerText = random.d;
+            document.getElementById('char-card').style.display = "block";
+            tg.HapticFeedback.notificationOccurred('success');
+        }
+    </script>
+</body>
+</html>
