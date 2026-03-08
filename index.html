@@ -1,42 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="https://telegram.org"></script>
     <title>Monopolio Pacífico</title>
     <style>
-        body { background: #001a33; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        .btn { background: #00aaff; border: none; padding: 15px; color: white; border-radius: 10px; font-weight: bold; width: 100%; cursor: pointer; }
-        #char-card { border: 2px solid #00ffcc; padding: 15px; margin-top: 20px; border-radius: 15px; display: none; }
+        body { background: #001a33; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 0; overflow-x: hidden; }
+        #header { background: #004080; padding: 15px; border-bottom: 3px solid #00ffcc; }
+        #stats { display: flex; justify-content: space-around; padding: 10px; background: rgba(0,0,0,0.5); font-weight: bold; }
+        .board-container { display: flex; justify-content: center; padding: 10px; }
+        .board { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; width: 95vw; max-width: 380px; background: #333; border: 2px solid #00ffcc; }
+        .cell { background: #e0f7fa; color: #333; height: 55px; font-size: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; text-align: center; }
+        .player { width: 15px; height: 15px; background: #ff3300; border-radius: 50%; position: absolute; border: 2px solid white; z-index: 100; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        .btn { background: #00ffcc; border: none; padding: 15px 30px; color: #000; border-radius: 30px; font-weight: bold; font-size: 18px; margin: 20px; cursor: pointer; box-shadow: 0 5px 0 #00997a; width: 80%; }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+        #msg { padding: 10px; font-size: 14px; color: #00ffcc; min-height: 40px; }
     </style>
 </head>
 <body>
-    <h1>🏝️ Monopolio Pacífico</h1>
-    <button class="btn" onclick="assignCharacter()">🎲 ASIGNAR MI PERSONAJE</button>
-
-    <div id="char-card">
-        <h2 id="char-name"></h2>
-        <p id="char-desc"></p>
+    <div id="header">
+        <h2 id="role-display">Asignando Personaje...</h2>
     </div>
+    <div id="stats">
+        <div>💰 $<span id="money">0</span></div>
+        <div>📍 Pos: <span id="pos-name">Salida</span></div>
+    </div>
+
+    <div class="board-container">
+        <div class="board" id="game-board">
+            <!-- El tablero se crea solo con JS -->
+        </div>
+    </div>
+
+    <div id="msg">¡Bienvenido! Tira los dados para empezar.</div>
+    <button class="btn" onclick="playTurn()">🎲 TIRAR DADOS</button>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const roles = [
-            { n: "The Rich Man", d: "Inicias con doble capital, pero pagas +20% impuestos." },
-            { n: "The President", d: "Si sales de la cárcel, ¡cambias una regla del juego!" },
-            { n: "Normal Player", d: "Tus dados nunca sacan 1. ¡Consistencia total!" },
-            { n: "The Special", d: "Puedes intercambiar tu posición con otro jugador una vez." },
-            { n: "El Afortunado", d: "50% de probabilidad de no pagar renta en resorts." }
+        const islands = [
+            "SALIDA", "Norfolk", "Navidad", "⬛ LAVA", "Marshall", "Marianas",
+            "CÁRCEL", "Guam", "Tonga", "🟦 AZUL", "Samoa", "Cook",
+            "PARQUE", "Vanuatu", "Salomón", "⬛ LAVA", "Kiribati", "Tuvalu",
+            "VETE CÁR", "Niue", "Tahití", "🟦 AZUL", "Bora Bora", "Fiyi"
         ];
 
-        function assignCharacter() {
-            const random = roles[Math.floor(Math.random() * roles.length)];
-            document.getElementById('char-name').innerText = "Eres: " + random.n;
-            document.getElementById('char-desc').innerText = random.d;
-            document.getElementById('char-card').style.display = "block";
-            tg.HapticFeedback.notificationOccurred('success');
+        const roles = {
+            "The Rich Man": 3000,
+            "The President": 1500,
+            "Normal Player": 1500,
+            "The Special": 1500,
+            "El Afortunado": 1500
+        };
+
+        let myRole = Object.keys(roles)[Math.floor(Math.random() * 5)];
+        let money = roles[myRole];
+        let currentPos = 0;
+
+        // Configurar pantalla inicial
+        document.getElementById('role-display').innerText = myRole;
+        document.getElementById('money').innerText = money;
+
+        // Crear las casillas visualmente
+        const boardDiv = document.getElementById('game-board');
+        islands.forEach((name, i) => {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.id = 'cell-' + i;
+            cell.innerText = name;
+            boardDiv.appendChild(cell);
+        });
+
+        function updatePlayerPosition() {
+            // Borrar ficha anterior
+            const oldPlayer = document.querySelector('.player');
+            if (oldPlayer) oldPlayer.remove();
+
+            // Crear ficha nueva en la casilla actual
+            const playerToken = document.createElement('div');
+            playerToken.className = 'player';
+            document.getElementById('cell-' + currentPos).appendChild(playerToken);
+            document.getElementById('pos-name').innerText = islands[currentPos];
         }
+
+        function playTurn() {
+            const dice = Math.floor(Math.random() * 6) + 1;
+            currentPos = (currentPos + dice) % islands.length;
+            
+            updatePlayerPosition();
+            document.getElementById('msg').innerText = "Sacaste " + dice + ". ¡Caíste en " + islands[currentPos] + "!";
+            
+            tg.HapticFeedback.impactOccurred('medium');
+        }
+
+        // Iniciar ficha en Salida
+        updatePlayerPosition();
     </script>
 </body>
 </html>
