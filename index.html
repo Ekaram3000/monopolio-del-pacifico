@@ -5,100 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="https://telegram.org"></script>
     <style>
-        body { background: #001a33; color: white; font-family: sans-serif; text-align: center; margin: 0; }
-        .header { background: #004080; padding: 10px; border-bottom: 3px solid #00ffcc; position: sticky; top: 0; z-index: 100; }
-        .stats { display: flex; justify-content: space-around; padding: 10px; background: rgba(0,0,0,0.5); font-weight: bold; }
-        .tablero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 10px; background: #333; margin: 10px auto; width: 95%; max-width: 400px; }
-        .casilla { background: #e0f7fa; color: #333; height: 70px; font-size: 9px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; position: relative; border-radius: 4px; border-bottom: 5px solid #ccc; }
-        /* Colores de los grupos */
-        .marrón { border-bottom-color: #8B4513; } .celeste { border-bottom-color: #87CEEB; } 
-        .rosa { border-bottom-color: #FF69B4; } .naranja { border-bottom-color: #FFA500; }
-        .especial { background: #ffeb3b; border-bottom-color: #333; }
-        .ficha { width: 16px; height: 16px; background: #ff3300; border-radius: 50%; border: 2px solid white; position: absolute; z-index: 10; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
-        .btn { background: #00ffcc; border: none; padding: 15px; color: black; border-radius: 30px; font-weight: bold; font-size: 18px; margin: 15px; cursor: pointer; width: 80%; box-shadow: 0 4px 0 #00997a; }
-        .btn:active { transform: translateY(2px); box-shadow: none; }
-        #msg { padding: 10px; color: #00ffcc; font-size: 14px; min-height: 40px; }
+        body { background: #001a33; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 0; }
+        .cabecera { background: #004080; padding: 15px; border-bottom: 2px solid #00ffcc; }
+        .tablero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 10px; background: #333; margin: 10px auto; width: 90%; max-width: 380px; }
+        .isla { background: #e0f7fa; color: #333; height: 60px; font-size: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; border-radius: 3px; border-bottom: 4px solid #ccc; }
+        .marrón { border-bottom-color: #8B4513; } .celeste { border-bottom-color: #87CEEB; } .rosa { border-bottom-color: #FF69B4; } .especial { background: #ffeb3b; }
+        .ficha { width: 14px; height: 14px; background: #ff3300; border-radius: 50%; border: 2px solid white; position: absolute; z-index: 10; }
+        .boton { background: #00ffcc; border: none; padding: 15px; color: black; border-radius: 30px; font-weight: bold; font-size: 18px; margin: 15px; cursor: pointer; width: 85%; box-shadow: 0 4px 0 #00997a; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h2 id="txtRol">Asignando...</h2>
-        <div class="stats">
-            <div>💰 $<span id="txtDinero">0</span></div>
-            <div>📍 <span id="txtPos">Salida</span></div>
+    <div class="cabecera">
+        <h2 id="mostrarRol">Cargando...</h2>
+        <div style="display:flex; justify-content: space-around;">
+            <span>💰 $<span id="mostrarDinero">0</span></span>
+            <span>📍 <span id="mostrarPos">Salida</span></span>
         </div>
     </div>
 
-    <div class="tablero" id="tablero"></div>
+    <div class="tablero" id="miTablero"></div>
 
-    <div id="msg">¡Bienvenido! Tira los dados para navegar.</div>
-    <button class="btn" onclick="lanzar()">🎲 TIRAR DADOS</button>
+    <div id="txtInfo" style="padding:10px; color:#00ffcc; font-size:13px; min-height:40px;">¡Tira los dados!</div>
+    <button class="boton" onclick="lanzar()">🎲 TIRAR DADOS</button>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Datos de las Islas (Nombre, Precio, Grupo)
-        const islas = [
+        const islasPacífico = [
             {n: "SALIDA", p: 0, g: "especial"}, {n: "Norfolk", p: 60, g: "marrón"}, 
             {n: "Navidad", p: 60, g: "marrón"}, {n: "LAVA", p: 0, g: "especial"},
             {n: "Marshall", p: 100, g: "celeste"}, {n: "Marianas", p: 100, g: "celeste"}, 
             {n: "CÁRCEL", p: 0, g: "especial"}, {n: "Guam", p: 120, g: "celeste"},
             {n: "Tonga", p: 140, g: "rosa"}, {n: "AZUL", p: 0, g: "especial"}, 
-            {n: "Samoa", p: 140, g: "rosa"}, {n: "Vanuatu", p: 180, g: "naranja"}
+            {n: "Samoa", p: 140, g: "rosa"}, {n: "Cook", p: 160, g: "rosa"}
         ];
 
-        const roles = ["The Rich Man", "The President", "Normal Player", "The Special", "El Afortunado"];
-        let miRol = roles[Math.floor(Math.random() * roles.length)];
+        const listaRoles = ["The Rich Man", "The President", "Normal Player", "The Special", "El Afortunado"];
+        let miRol = listaRoles[Math.floor(Math.random() * listaRoles.length)];
         let miDinero = (miRol === "The Rich Man") ? 3000 : 1500;
         let miPos = 0;
-        let propiedades = [];
 
-        document.getElementById('txtRol').innerText = "Rol: " + miRol;
-        document.getElementById('txtDinero').innerText = miDinero;
+        document.getElementById('mostrarRol').innerText = "Rol: " + miRol;
+        document.getElementById('mostrarDinero').innerText = miDinero;
 
-        const container = document.getElementById('tablero');
-        islas.forEach((isla, i) => {
+        const contenedor = document.getElementById('miTablero');
+        islasPacífico.forEach((isla, i) => {
             const div = document.createElement('div');
-            div.className = `casilla ${isla.g}`;
-            div.id = `isla-${i}`;
-            div.innerHTML = `<span>${isla.n}</span><br><span style="font-size:7px">${isla.p > 0 ? '$'+isla.p : ''}</span>`;
-            container.appendChild(div);
+            div.className = "isla " + isla.g;
+            div.id = "cas-" + i;
+            div.innerText = isla.n;
+            contenedor.appendChild(div);
         });
 
-        function moverFicha() {
+        function actualizarFicha() {
             const vieja = document.querySelector('.ficha');
             if (vieja) vieja.remove();
             const ficha = document.createElement('div');
             ficha.className = 'ficha';
-            document.getElementById(`isla-${miPos}`).appendChild(ficha);
-            document.getElementById('txtPos').innerText = islas[miPos].n;
+            document.getElementById("cas-" + miPos).appendChild(ficha);
+            document.getElementById('mostrarPos').innerText = islasPacífico[miPos].n;
         }
 
         function lanzar() {
             const dado = Math.floor(Math.random() * 6) + 1;
-            miPos = (miPos + dado) % islas.length;
-            const islaActual = islas[miPos];
+            miPos = (miPos + dado) % islasPacífico.length;
             
-            let mensaje = `Sacaste ${dado}. Caíste en ${islaActual.n}.`;
+            const islaActual = islasPacífico[miPos];
+            let mensaje = "Sacaste " + dado + ". Caíste en " + islaActual.n;
 
-            // Lógica de Compra
-            if (islaActual.p > 0 && !propiedades.includes(miPos)) {
-                if (miDinero >= islaActual.p) {
-                    miDinero -= islaActual.p;
-                    propiedades.push(miPos);
-                    mensaje += ` ¡Comprada por $${islaActual.p}!`;
-                    document.getElementById(`isla-${miPos}`).style.background = "#90ee90"; // Color verde si es tuya
-                }
+            if (islaActual.p > 0) {
+                miDinero -= 100; // Compra fija para probar
+                mensaje += ". ¡Comprada por $100!";
             }
 
-            document.getElementById('txtDinero').innerText = miDinero;
-            document.getElementById('msg').innerText = mensaje;
-            moverFicha();
+            document.getElementById('mostrarDinero').innerText = miDinero;
+            document.getElementById('txtInfo').innerText = mensaje;
+            actualizarFicha();
             tg.HapticFeedback.impactOccurred('medium');
         }
 
-        moverFicha();
+        actualizarFicha();
     </script>
 </body>
 </html>
