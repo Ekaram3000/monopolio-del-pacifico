@@ -1,85 +1,88 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="https://telegram.org"></script>
-    <title>Pacífico</title>
+    <title>Monopolio Pacífico</title>
     <style>
         body { background: #001a33; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 0; }
-        .cabecera { background: #004080; padding: 20px; border-bottom: 3px solid #00ffcc; }
-        .tablero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 15px; background: #333; margin: 10px auto; width: 90%; }
-        .isla { background: #e0f7fa; color: #333; height: 65px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; border-radius: 4px; }
-        .ficha { width: 18px; height: 18px; background: #ff3300; border-radius: 50%; border: 2px solid white; position: absolute; z-index: 10; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
-        .boton { background: #00ffcc; border: none; padding: 15px 30px; color: black; border-radius: 30px; font-weight: bold; font-size: 18px; margin-top: 20px; cursor: pointer; box-shadow: 0 4px 0 #00997a; width: 80%; }
-        .boton:active { transform: translateY(4px); box-shadow: none; }
+        .stats-box { background: #004080; padding: 15px; border-bottom: 3px solid #00ffcc; }
+        .tablero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 10px; background: #333; margin: 10px auto; width: 90%; max-width: 350px; }
+        .casilla { background: #e0f7fa; color: #333; height: 55px; font-size: 9px; display: flex; align-items: center; justify-content: center; font-weight: bold; position: relative; border-radius: 4px; }
+        .ficha { width: 14px; height: 14px; background: #ff3300; border-radius: 50%; border: 2px solid white; position: absolute; z-index: 10; }
+        .boton { background: #00ffcc; border: none; padding: 15px; color: black; border-radius: 30px; font-weight: bold; font-size: 18px; margin-top: 15px; cursor: pointer; width: 80%; box-shadow: 0 4px 0 #00997a; }
+        .boton:active { transform: translateY(2px); box-shadow: none; }
     </style>
 </head>
 <body>
-    <div class="cabecera">
-        <h2 id="mostrarRol">Cargando...</h2>
-        <h3 id="mostrarDinero">$0</h3>
+    <div class="stats-box">
+        <h2 id="txtRol">Asignando...</h2>
+        <h3 id="txtDinero">$0</h3>
     </div>
 
-    <div class="tablero" id="mapa"></div>
+    <div class="tablero" id="contenedorTablero"></div>
 
-    <div id="info" style="padding: 10px; color: #00ffcc;">¡Toca el botón para jugar!</div>
-    <button class="boton" onclick="jugar()">🎲 TIRAR DADOS</button>
+    <div id="txtInfo" style="padding: 10px; color: #00ffcc; min-height: 40px;">¡Toca el botón para jugar!</div>
+    <button class="boton" onclick="lanzarDados()">🎲 TIRAR DADOS</button>
 
     <script>
+        // 1. Iniciar Telegram WebApp
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const islas = ["SALIDA", "Norfolk", "Navidad", "LAVA", "Marshall", "Marianas", "CÁRCEL", "Guam", "Tonga", "AZUL", "Samoa", "Cook"];
-        const roles = ["The Rich Man", "The President", "Normal Player", "The Special", "El Afortunado"];
+        // 2. Datos del Juego
+        const listaIslas = ["SALIDA", "Norfolk", "Navidad", "LAVA", "Marshall", "Marianas", "CÁRCEL", "Guam", "Tonga", "AZUL", "Samoa", "Cook"];
+        const listaRoles = ["The Rich Man", "The President", "Normal Player", "The Special", "El Afortunado"];
         
-        let rol = roles[Math.floor(Math.random() * roles.length)];
-        let dinero = (rol === "The Rich Man") ? 3000 : 1500;
-        let posicion = 0;
+        let miRol = listaRoles[Math.floor(Math.random() * listaRoles.length)];
+        let miDinero = (miRol === "The Rich Man") ? 3000 : 1500;
+        let miPosicion = 0;
 
-        // Actualizar pantalla inicial
-        document.getElementById('mostrarRol').innerText = "Eres: " + rol;
-        document.getElementById('mostrarDinero').innerText = "$" + dinero;
+        // 3. Mostrar Datos Iniciales
+        document.getElementById('txtRol').innerText = "Rol: " + miRol;
+        document.getElementById('txtDinero').innerText = "$" + miDinero;
 
-        // Crear las casillas
-        const contenedor = document.getElementById('mapa');
-        islands_html = "";
-        islas.forEach((nombre, i) => {
-            const div = document.createElement('div');
-            div.className = 'isla';
-            div.id = 'casilla-' + i;
-            div.innerText = nombre;
-            contenedor.appendChild(div);
+        // 4. Crear el Tablero Visual
+        const cajaTablero = document.getElementById('contenedorTablero');
+        listaIslas.forEach((nombre, i) => {
+            const divCasilla = document.createElement('div');
+            divCasilla.className = 'casilla';
+            divCasilla.id = 'cas-' + i;
+            divCasilla.innerText = nombre;
+            cajaTablero.appendChild(divCasilla);
         });
 
-        function moverFicha() {
+        // 5. Función para mover la ficha roja
+        function refrescarFicha() {
             const vieja = document.querySelector('.ficha');
             if (vieja) vieja.remove();
             
-            const ficha = document.createElement('div');
-            ficha.className = 'ficha';
-            document.getElementById('casilla-' + posicion).appendChild(ficha);
+            const nuevaFicha = document.createElement('div');
+            nuevaFicha.className = 'ficha';
+            document.getElementById('cas-' + miPosicion).appendChild(nuevaFicha);
         }
 
-        function jugar() {
+        // 6. Función del Botón
+        function lanzarDados() {
             const dado = Math.floor(Math.random() * 6) + 1;
-            posicion = (posicion + dado) % islas.length;
+            miPosicion = (miPosicion + dado) % listaIslas.length;
             
-            // Lógica simple de compra (solo para probar)
-            if (posicion !== 0 && posicion !== 3 && posicion !== 6 && posicion !== 9) {
-                dinero -= 100;
-                document.getElementById('info').innerText = "Sacaste " + dado + ". ¡Compraste " + islas[posicion] + "!";
+            // Lógica: Si no es casilla especial, resta dinero (compra)
+            if (miPosicion !== 0 && miPosicion !== 3 && miPosicion !== 6 && miPosicion !== 9) {
+                miDinero -= 100;
+                document.getElementById('txtInfo').innerText = "Sacaste " + dado + ". ¡Compraste " + listaIslas[miPosicion] + "!";
             } else {
-                document.getElementById('info').innerText = "Sacaste " + dado + ". Caíste en " + islas[posicion];
+                document.getElementById('txtInfo').innerText = "Sacaste " + dado + ". Caíste en " + listaIslas[miPosicion];
             }
 
-            document.getElementById('mostrarDinero').innerText = "$" + dinero;
-            moverFicha();
+            document.getElementById('txtDinero').innerText = "$" + miDinero;
+            refrescarFicha();
             tg.HapticFeedback.impactOccurred('medium');
         }
 
-        // Iniciar ficha en Salida al cargar
-        moverFicha();
+        // 7. Poner ficha inicial
+        refrescarFicha();
     </script>
 </body>
 </html>
